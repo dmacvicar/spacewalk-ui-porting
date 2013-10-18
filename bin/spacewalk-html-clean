@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+require 'diffy'
+
+jardir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
+require File.join(jardir, 'jericho-html-3.3.jar')
+
+import 'net.htmlparser.jericho.Source'
+import 'net.htmlparser.jericho.OutputDocument'
+import 'net.htmlparser.jericho.Attributes'
+
+Dir.glob('./**/*.{jsp,jspf}').each do |path|
+  content = File.read(path)
+  source = Source.new(content)
+  out = OutputDocument.new(source)
+
+  tables = source.getAllStartTags("table")
+  tables.each do |table|
+    table.getAttributes.each do |attr|
+      if ['cellpadding', 'cellspacing', 'width'].include?(attr.name)
+        STDERR.puts 'remove!'
+        out.remove(attr)
+      end
+    end
+  end
+  begin
+    diff = Diffy::Diff.new(content, out.toString, :include_diff_info => true)
+    puts diff.to_s(:color)
+  rescue
+    STDERR.puts "Failed diff for #{path}"
+  end
+  #break
+end
