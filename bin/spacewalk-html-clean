@@ -29,7 +29,8 @@ end
 
 # TODO read this from a file later
 IMGTABLE = {
-  '/img/rhn-mon-down.gif' => 'icon-linux'
+  '/img/rhn-mon-down.gif' => 'icon-linux',
+  '/img/rhn-config_files.gif' => 'icon-apple'
 }
 
 def translate_images(out, tag)
@@ -47,6 +48,14 @@ def clean_tables(out, tag)
   end
 end
 
+def transform_toolbar_image(out, tag)
+  src = tag.getAttributeValue('img')
+  if IMGTABLE.has_key?(src)
+    img = tag.getAttributes.get('img')
+    out.replace(img, %Q{icon="#{IMGTABLE[src]}"})
+  end
+end
+
 logger = Logger.new("/dev/null")
 logger.level = Logger::WARN
 
@@ -58,8 +67,9 @@ Dir.glob('./**/*.{jsp,jspf}').each do |path|
 
   tags = source.getAllStartTags
   tags.each do |tag|
-    clean_tables(out, tag) if tag.name == 'table'
-    translate_images(out, tag) if tag.name == 'img'
+    #clean_tables(out, tag) if tag.name == 'table'
+    #translate_images(out, tag) if tag.name == 'img'
+	transform_toolbar_image(out, tag) if tag.name == 'rhn:toolbar'
   end
 
   begin
