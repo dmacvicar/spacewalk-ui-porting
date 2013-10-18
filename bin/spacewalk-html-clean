@@ -1,8 +1,10 @@
 #!/usr/bin/env ruby
 require 'diffy'
 require 'logger'
+require 'csv'
 
 jardir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
+bindir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'bin'))
 require File.join(jardir, 'jericho-html-3.3.jar')
 
 import 'net.htmlparser.jericho.Source'
@@ -27,16 +29,21 @@ class JerichoLoggerAdapter
   end
 end
 
-# TODO read this from a file later
-IMGTABLE = {
-  '/img/rhn-mon-down.gif' => 'icon-linux',
-  '/img/rhn-config_files.gif' => 'icon-apple'
-}
+# read csv into hash like {'/img/rhn-icon-user.gif' => {:newicon => 'icon-user', :color => 'default'}, ... }
+imglist = File.join(bindir, 'imglist')
+csv_options = {:headers => true, :header_converters => :symbol, :converters => :all}
+hashes = {}
 
-def translate_images(out, tag)
-  src = tag.getAttributeValue('src')
-  if IMGTABLE.has_key?(src)
-    out.replace(tag, %Q{<i class="#{IMGTABLE[src]}"></i>})
+CSV.foreach(imglist, csv_options) do |line|
+	hashes[line.fields[0]] = Hash[line.headers[1..-1].zip(line.fields[1..-1])]
+end
+
+def translate_images(out, tag, list)
+  list.each do |key, hash|
+    src = tag.getAttributeValue('src')
+    if key == src
+      out.replace(tag, %Q{<i class="#{hash[:newicon]}"></i>}) unless hash[:newicon].nil?
+    end
   end
 end
 
@@ -48,11 +55,13 @@ def clean_tables(out, tag)
   end
 end
 
-def transform_toolbar_image(out, tag)
-  src = tag.getAttributeValue('img')
-  if IMGTABLE.has_key?(src)
-    img = tag.getAttributes.get('img')
-    out.replace(img, %Q{icon="#{IMGTABLE[src]}"})
+def transform_toolbar_image(out, tag, list)
+  list.each do |key, hash|
+    src = tag.getAttributeValue('img')
+    if key == src
+      img = tag.getAttributes.get('img')
+      out.replace(img, %Q{icon="#{hash[:newicon]}"}) unless hash[:newicon].nil?
+    end
   end
 end
 
@@ -68,8 +77,8 @@ Dir.glob('./**/*.{jsp,jspf}').each do |path|
   tags = source.getAllStartTags
   tags.each do |tag|
     #clean_tables(out, tag) if tag.name == 'table'
-    #translate_images(out, tag) if tag.name == 'img'
-	transform_toolbar_image(out, tag) if tag.name == 'rhn:toolbar'
+    translate_images(out, tag, hashes) if tag.name == 'img'
+	#transform_toolbar_image(out, tag, hashes) if tag.name == 'rhn:toolbar'
   end
 
   begin
