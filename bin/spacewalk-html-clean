@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 require 'diffy'
+require 'logger'
 
 jardir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
 require File.join(jardir, 'jericho-html-3.3.jar')
@@ -8,25 +9,63 @@ import 'net.htmlparser.jericho.Source'
 import 'net.htmlparser.jericho.OutputDocument'
 import 'net.htmlparser.jericho.Attributes'
 
+# Jericho needs an object implementing the
+# interface
+# http://jericho.htmlparser.net/docs/javadoc/net/htmlparser/jericho/Logger.html
+# we create an adapter for the ruby logger
+class JerichoLoggerAdapter
+  def initialize(logger)
+    @logger = logger
+  end
+  def isErrorEnabled() @logger.error? end
+  def isDebugEnabled() @logger.debug? end
+  def isInfoEnabled() @logger.info? end
+  def isWarnEnabled() @logger.warn? end
+
+  def method_missing(name, *args)
+    @logger.send(name, *args)
+  end
+end
+
+# TODO read this from a file later
+IMGTABLE = {
+  '/img/rhn-mon-down.gif' => 'icon-linux'
+}
+
+def translate_images(out, tag)
+  src = tag.getAttributeValue('src')
+  if IMGTABLE.has_key?(src)
+    out.replace(tag, %Q{<i class="#{IMGTABLE[src]}"></i>})
+  end
+end
+
+def clean_tables(out, tag)
+  tag.getAttributes.each do |attr|
+    if ['cellpadding', 'cellspacing', 'width'].include?(attr.name)
+      out.remove(attr)
+    end
+  end
+end
+
+logger = Logger.new("/dev/null")
+logger.level = Logger::WARN
+
 Dir.glob('./**/*.{jsp,jspf}').each do |path|
   content = File.read(path)
   source = Source.new(content)
+  source.setLogger(JerichoLoggerAdapter.new(logger))
   out = OutputDocument.new(source)
 
-  tables = source.getAllStartTags("table")
-  tables.each do |table|
-    table.getAttributes.each do |attr|
-      if ['cellpadding', 'cellspacing', 'width'].include?(attr.name)
-        STDERR.puts 'remove!'
-        out.remove(attr)
-      end
-    end
+  tags = source.getAllStartTags
+  tags.each do |tag|
+    clean_tables(out, tag) if tag.name == 'table'
+    translate_images(out, tag) if tag.name == 'img'
   end
+
   begin
     diff = Diffy::Diff.new(content, out.toString, :include_diff_info => true)
     puts diff.to_s(:color)
   rescue
     STDERR.puts "Failed diff for #{path}"
   end
-  #break
 end
