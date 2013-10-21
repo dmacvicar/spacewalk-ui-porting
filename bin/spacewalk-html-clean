@@ -42,7 +42,11 @@ def translate_images(out, tag, list)
   list.each do |key, hash|
     src = tag.getAttributeValue('src')
     if key == src
-      out.replace(tag, %Q{<i class="#{hash[:newicon]}"></i>}) unless hash[:newicon].nil?
+	  unless hash[:color] == 'default'
+        out.replace(tag, %Q{<i class="#{hash[:newicon]} #{hash[:color]}"></i>}) unless hash[:newicon].nil?
+	  else
+	    out.replace(tag, %Q{<i class="#{hash[:newicon]}"></i>}) unless hash[:newicon].nil?
+	  end
     end
   end
 end
