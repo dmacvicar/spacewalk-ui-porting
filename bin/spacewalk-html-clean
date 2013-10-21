@@ -29,15 +29,6 @@ class JerichoLoggerAdapter
   end
 end
 
-# read csv into hash like {'/img/rhn-icon-user.gif' => {:newicon => 'icon-user', :color => 'default'}, ... }
-imglist = File.join(bindir, 'imglist')
-csv_options = {:headers => true, :header_converters => :symbol, :converters => :all}
-hashes = {}
-
-CSV.foreach(imglist, csv_options) do |line|
-	hashes[line.fields[0]] = Hash[line.headers[1..-1].zip(line.fields[1..-1])]
-end
-
 def translate_images(out, tag, list)
   list.each do |key, hash|
     src = tag.getAttributeValue('src')
@@ -72,6 +63,15 @@ end
 logger = Logger.new("/dev/null")
 logger.level = Logger::WARN
 
+# read csv into hash like [{'/img/rhn-icon-user.gif' => {:newicon => 'icon-user', :color => 'default'}, ... }, ...]
+imglist = File.join(bindir, 'imglist')
+csv_options = {:headers => true, :header_converters => :symbol, :converters => :all}
+image_map = {}
+
+CSV.foreach(imglist, csv_options) do |line|
+	image_map[line.fields[0]] = Hash[line.headers[1..-1].zip(line.fields[1..-1])]
+end
+
 Dir.glob('./**/*.{jsp,jspf}').each do |path|
   content = File.read(path)
   source = Source.new(content)
@@ -81,8 +81,8 @@ Dir.glob('./**/*.{jsp,jspf}').each do |path|
   tags = source.getAllStartTags
   tags.each do |tag|
     #clean_tables(out, tag) if tag.name == 'table'
-    translate_images(out, tag, hashes) if tag.name == 'img'
-	#transform_toolbar_image(out, tag, hashes) if tag.name == 'rhn:toolbar'
+    translate_images(out, tag, image_map) if tag.name == 'img'
+	#transform_toolbar_image(out, tag, image_map) if tag.name == 'rhn:toolbar'
   end
 
   begin
