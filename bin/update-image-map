@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+libdir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
+$: << libdir
+
+renames_file = File.expand_path(File.join(File.dirname(__FILE__), '..', 'data/fontawesome_renames.txt'))
+fa_renames = {}
+File.read(renames_file).lines.each do |line|
+  key, val = line.strip.split(',')
+  fa_renames["#{key}"] = "#{val}"
+end
+
+map_file = File.expand_path(File.join(File.dirname(__FILE__), '..', 'data/spacewalk_image_map_old.csv'))
+image_map = {}
+color_map = {}
+File.read(map_file).lines.each do |line|
+  key, val, color = line.strip.split(',')
+  image_map[key] = val
+  color_map[key] = color
+end
+
+image_map.each do |key, val|
+  if val.empty?
+    puts "#{key},,default"
+  end
+  if val =~ /icon-(.+)/
+    basename = $1
+    if fa_renames.has_key?(basename)
+      puts "#{key},fa-#{fa_renames[basename]},#{color_map[key]}"
+    else
+      puts "#{key},fa-#{basename},#{color_map[key]}"
+    end
+
+  else
+    if fa_renames.has_key?(val)
+      puts "#{key},#{val},#{color_map[key]}"
+    end
+  end
+end

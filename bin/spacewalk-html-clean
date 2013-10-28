@@ -1,132 +1,17 @@
 #!/usr/bin/env ruby
-require 'diffy'
-require 'logger'
-require 'csv'
+libdir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
+$: << libdir
 
-jardir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
+require 'spacewalk_html_clean/commands'
+require 'spacewalk_html_clean/main_command'
+
+
 bindir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'bin'))
-require File.join(jardir, 'jericho-html-3.3.jar')
 
-import 'net.htmlparser.jericho.Source'
-import 'net.htmlparser.jericho.OutputDocument'
-import 'net.htmlparser.jericho.Attributes'
-
-# Jericho needs an object implementing the
-# interface
-# http://jericho.htmlparser.net/docs/javadoc/net/htmlparser/jericho/Logger.html
-# we create an adapter for the ruby logger
-class JerichoLoggerAdapter
-  def initialize(logger)
-    @logger = logger
-  end
-  def isErrorEnabled() @logger.error? end
-  def isDebugEnabled() @logger.debug? end
-  def isInfoEnabled() @logger.info? end
-  def isWarnEnabled() @logger.warn? end
-
-  def method_missing(name, *args)
-    @logger.send(name, *args)
-  end
+def port_fontawesome_renames(out, tag, list)
+  #  <c:set var="actionIcon" value="icon-plus"/>
+  #
 end
 
-def translate_images(out, tag, list)
-  list.each do |key, hash|
-    src = tag.getAttributeValue('src')
-    if key == src
-      unless hash[:color] == 'default'
-        out.replace(tag, %Q{<i class="#{hash[:newicon]} #{hash[:color]}"></i>}) unless hash[:newicon].nil?
-	  else
-        out.replace(tag, %Q{<i class="#{hash[:newicon]}"></i>}) unless hash[:newicon].nil?
-      end
-    end
-  end
-end
+SpacewalkHtmlClean::MainCommand.run
 
-def clean_tables(out, tag)
-  tag.getAttributes.each do |attr|
-    if ['cellpadding', 'cellspacing', 'width'].include?(attr.name)
-      out.remove(attr)
-    end
-  end
-end
-
-def transform_toolbar_image(out, tag, list)
-  list.each do |key, hash|
-    src = tag.getAttributeValue('img')
-    if key == src
-      img = tag.getAttributes.get('img')
-      out.replace(img, %Q{icon="#{hash[:newicon]}"}) unless hash[:newicon].nil?
-    end
-  end
-end
-
-def get_stats(out, tag, stats, path)
-  unless tag.getAttributes.to_s.strip == "" or tag.getAttributes.to_s.strip.match(/^class=|^method=|^href=|HREF=|src=|type=/)
-    stats["#{tag.name}"] << {tag.getAttributes.to_s.strip => path} 
-  end
-end
-
-def print_stats(stats)
-  stats.each do |hash,array|
-    unless array.empty?
-      puts "HTML_TAG = <#{hash}>"
-      puts "\tATTRIBUTES:"
-      array.each do |hash_element|
-        hash_element.each do |attr,path|
-          puts "\t --> #{attr} --> #{path}"
-        end
-      end
-	  puts "END\n" + "#" * 80
-    end
-  end
-end
-
-def generate_diff(content, out, path)
-  begin
-    diff = Diffy::Diff.new(content, out.toString, :include_diff_info => true).to_s.lines.reject {|x| x =~ /^([-+]{3})/}.join
-    unless diff.empty?
-      puts "--- a/#{path} #{Time.now}"
-      puts "+++ b/#{path} #{Time.now}"
-      puts diff
-    end
-  rescue
-    STDERR.puts "Failed diff for #{path}"
-  end
-end
-
-logger = Logger.new("/dev/null")
-logger.level = Logger::WARN
-
-# read csv into hash like [{'/img/rhn-icon-user.gif' => {:newicon => 'icon-user', :color => 'default'}, ...]
-imglist = File.join(bindir, 'imglist')
-csv_options = {:headers => true, :header_converters => :symbol, :converters => :all}
-image_map = {}
-
-CSV.foreach(imglist, csv_options) do |line|
-  image_map[line.fields[0]] = Hash[line.headers[1..-1].zip(line.fields[1..-1])]
-end
-
-# statistics
-stats = Hash.new
-white = %w(nav div a p img center ul li i form select option input button \
-           span h4 h3 h2 h1 strong hr table tr td ol th textarea hidden \
-           title h5 style thead pre tbody em optgroup b tt noscript header \
-           aside section footer link small)
-white.each {|t| stats[t] = []}
-
-Dir.glob('./**/*.{jsp,jspf}').each do |path|
-  content = File.read(path)
-  source = Source.new(content)
-  source.setLogger(JerichoLoggerAdapter.new(logger))
-  out = OutputDocument.new(source)
-
-  tags = source.getAllStartTags
-  tags.each do |tag|
-    #get_stats(out, tag, stats, path) if white.include?(tag.name)
-    #clean_tables(out, tag) if tag.name == 'table'
-    #translate_images(out, tag, image_map) if tag.name == 'img'
-    #transform_toolbar_image(out, tag, image_map) if tag.name == 'rhn:toolbar'
-  end
-  #generate_diff(content, out, path)
-end
-#print_stats(stats)
