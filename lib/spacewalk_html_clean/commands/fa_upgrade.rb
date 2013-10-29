@@ -47,8 +47,18 @@ module SpacewalkHtmlClean
         fa_classes = icon_classes.map do |icon|
           'fa-' + @renames[icon.gsub(/^icon-/, '')]
         end
+
+        other_classes.map! do |x|
+          case x
+            when 'spacewalk-icon-red' then 'text-danger'
+            when 'spacewalk-icon-yellow' then 'text-warning'
+            when 'spacewalk-icon-green' then 'text-success'
+            when 'spacewalk-icon-blue' then 'text-info'
+            else x
+          end
+        end
         fa_classes.unshift('fa') if not icon_classes.empty?
-        fa_classes = other_classes + fa_classes
+        fa_classes = fa_classes + other_classes
         out.replace(class_attr, %Q{class="#{fa_classes.join(' ')}"})
       end
 
