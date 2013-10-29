@@ -8,10 +8,5 @@ require 'spacewalk_html_clean/main_command'
 
 bindir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'bin'))
 
-def port_fontawesome_renames(out, tag, list)
-  #  <c:set var="actionIcon" value="icon-plus"/>
-  #
-end
-
 SpacewalkHtmlClean::MainCommand.run
 
