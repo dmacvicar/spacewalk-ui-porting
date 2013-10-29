@@ -12,8 +12,8 @@ module SpacewalkHtmlClean
 
       def process_tag(source, out, tag, path)
         case tag.name
-          #when 'rhn:toolbar' then process_toolbar(source, out, tag)
-          when 'i' then process_i(source, out, tag)
+          when 'rhn:toolbar' then process_toolbar(source, out, tag)
+          #when 'i' then process_i(source, out, tag)
         end
       end
 
@@ -52,6 +52,21 @@ module SpacewalkHtmlClean
         out.replace(class_attr, %Q{class="#{fa_classes.join(' ')}"})
       end
 
+      def process_toolbar(source, out, tag)
+        load_renames!
+        class_attr = tag.getAttributes.get('icon')
+        return unless class_attr
+        val = class_attr.getValue()
+        return unless val
+        classes = val.strip.split(' ')
+        icon_classes = classes.grep(/^icon-(.+)/)
+        other_classes = classes.reject {|x| icon_classes.include?(x)}
+
+        fa_classes = icon_classes.map do |icon|
+          'fa-' + @renames[icon.gsub(/^icon-/, '')]
+        end
+        out.replace(class_attr, %Q{icon="#{fa_classes.join(' ')}"}) unless other_classes.include?(val)
+      end
     end
 
   end
