@@ -11,4 +11,5 @@ Gem::Specification.new do |s|
   s.required_rubygems_version = ">= 1.3.6"
   s.add_dependency('diffy')
   s.add_dependency('clamp')
+  s.add_dependency('fastimage')
 end

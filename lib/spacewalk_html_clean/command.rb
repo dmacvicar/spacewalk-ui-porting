@@ -31,9 +31,9 @@ module SpacewalkHtmlClean
     end
   end
 
-  def self.generate_diff(content, out, path)
+  def self.generate_diff(before, after, path)
     begin
-      diff = Diffy::Diff.new(content, out.toString, :include_diff_info => true).to_s.lines.reject {|x| x =~ /^([-+]{3})/}.join
+      diff = Diffy::Diff.new(before, after, :include_diff_info => true).to_s.lines.reject {|x| x =~ /^([-+]{3})/}.join
       unless diff.empty?
         puts "--- a/#{path} #{Time.now}"
         puts "+++ b/#{path} #{Time.now}"
@@ -64,9 +64,9 @@ module SpacewalkHtmlClean
       logger.level = Logger::WARN
       log_adapter = JerichoLoggerAdapter.new(logger)
 
-
       Dir.glob('./**/*.{jsp,jspf}').each do |path|
         content = File.read(path)
+        on_file_start(content, path)
         source = Source.new(content)
         source.setLogger(log_adapter)
         out = OutputDocument.new(source)
@@ -77,12 +77,30 @@ module SpacewalkHtmlClean
             process_tag(source, out, tag, path)
           end
         end
-        SpacewalkHtmlClean.generate_diff(content, out, path)
+
+        on_file_done(content, out.toString, path)
       end
+
+      Dir.glob('./**/*.{java}').each do |path|
+        content = File.read(path)
+        on_file_start(content, path)
+      end
+
+      on_done
     end
 
     def process_tag(source, out, tag, path)
       raise NotImplementedError
+    end
+
+    def on_file_start(content, path)
+    end
+
+    def on_file_done(content, source, out, path)
+      SpacewalkHtmlClean.generate_diff(content, out, path)
+    end
+
+    def on_done
     end
 
   end
