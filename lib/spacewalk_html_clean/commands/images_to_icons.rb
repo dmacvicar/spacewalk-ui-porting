@@ -8,13 +8,14 @@ module SpacewalkHtmlClean
 
       def applicable?(tag)
         tag.name == 'table'
-        ['rhn:toolbar', 'img'].include?(tag.name)
+        ['rhn:toolbar', 'rhn-toolbar', 'img'].include?(tag.name)
       end
 
       def process_tag(source, out, tag, path)
         case tag.name
-          when 'rhn:toolbar' then process_toolbar(source, out, tag)
-          when 'img' then process_image(source, out, tag)
+          when 'rhn:toolbar' then process_toolbar(source, out, tag, path)
+          when 'rhn-toolbar' then process_toolbar(source, out, tag, path)
+          when 'img' then process_image(source, out, tag, path)
         end
       end
 
@@ -30,30 +31,28 @@ module SpacewalkHtmlClean
         end
       end
 
-      def process_image(source, out, tag)
+      def process_image(source, out, tag, path)
         load_image_map!
-
-        @image_map.each do |key, fields|
-          src = tag.getAttributeValue('src')
-          if key == src
-            unless fields[:color] == 'default'
-              out.replace(tag, %Q{<i class="#{fields[:newicon]} #{fields[:color]}"></i>}) unless fields[:newicon].nil?
+        src = tag.getAttributes.get('src')
+        if @image_map.has_key?(src.getValue)
+          fields = @image_map[src.getValue]
+          if fields[:color] != 'default'
+            out.replace(tag, %Q{<i class="#{fields[:newicon]} #{fields[:color]}"></i>}) unless fields[:newicon].nil?
           else
-              out.replace(tag, %Q{<i class="#{fields[:newicon]}"></i>}) unless fields[:newicon].nil?
-            end
+            out.replace(tag, %Q{<i class="#{fields[:newicon]}"></i>}) unless fields[:newicon].nil?
           end
         end
       end
 
-      def process_toolbar(source, out, tag)
+      def process_toolbar(source, out, tag, path)
         load_image_map!
-
-        @image_map.each do |key, fields|
-          src = tag.getAttributeValue('img')
-          if key == src
-            img = tag.getAttributes.get('img')
-            out.replace(img, %Q{icon="#{fields[:newicon]}"}) unless fields[:newicon].nil?
-          end
+        src = tag.getAttributes.get('img')
+        return if not src
+        if @image_map.has_key?(src.getValue)
+          fields = @image_map[src.getValue]
+          out.replace(src, %Q{icon="#{fields[:newicon]}"}) unless fields[:newicon].nil?
+          alt = tag.getAttributes.get('imgAlt')
+          out.replace(alt, %Q{iconAlt="#{alt.getValue}"}) if alt
         end
       end
 

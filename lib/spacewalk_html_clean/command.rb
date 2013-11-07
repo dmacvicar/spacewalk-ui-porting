@@ -56,6 +56,22 @@ module SpacewalkHtmlClean
       name.gsub!(/(.)([A-Z])/,'\1-\2').downcase rescue name.downcase
     end
 
+    def self.top_git_directory
+      dir = Dir.pwd
+      while dir != '/'
+        return File.expand_path(dir) if File.directory?(File.join(dir, '.git'))
+        dir = File.dirname(dir)
+      end
+      raise "Can't find top .git directory"
+    end
+
+    def top_git_directory
+      unless @top_git_directory
+        @top_git_directory = self.class.top_git_directory
+      end
+      @top_git_directory
+    end
+
     # Implementation of Clamp::Command#execute
     # Delegates to SpacewalkHtmlClean#Command#process_tag
     def execute
@@ -64,26 +80,38 @@ module SpacewalkHtmlClean
       logger.level = Logger::WARN
       log_adapter = JerichoLoggerAdapter.new(logger)
 
-      Dir.glob('./**/*.{jsp,jspf}').each do |path|
-        content = File.read(path)
-        on_file_start(content, path)
-        source = Source.new(content)
-        source.setLogger(log_adapter)
-        out = OutputDocument.new(source)
+      perl_pages = File.join(top_git_directory, 'java/code/**/*.{jsp,jspf}')
+      java_pages = File.join(top_git_directory, 'web//**/*.{pxt, pxi}')
+      [perl_pages, java_pages].each do |pages|
+        Dir.glob(pages).each do |path|
+          content = File.read(path)
+          on_file_start(content, path)
+          source = Source.new(content)
+          source.setLogger(log_adapter)
+          out = OutputDocument.new(source)
 
-        tags = source.getAllStartTags
-        tags.each do |tag|
-          if applicable?(tag)
-            process_tag(source, out, tag, path)
+          tags = source.getAllStartTags
+          tags.each do |tag|
+            if applicable?(tag)
+              process_tag(source, out, tag, path)
+            end
           end
-        end
 
-        on_file_done(content, out.toString, path)
+          on_file_changed(content, out.toString, path)
+          on_file_done(path)
+        end
       end
 
-      Dir.glob('./**/*.{java}').each do |path|
+      Dir.glob(File.join(top_git_directory, 'java/code/**/*.{java}')).each do |path|
         content = File.read(path)
         on_file_start(content, path)
+        on_file_done(path)
+      end
+
+      Dir.glob(File.join(top_git_directory, 'web/**/*.{pm}')).each do |path|
+        content = File.read(path)
+        on_file_start(content, path)
+        on_file_done(path)
       end
 
       on_done
@@ -96,8 +124,12 @@ module SpacewalkHtmlClean
     def on_file_start(content, path)
     end
 
-    def on_file_done(content, source, out, path)
+    # has to be called
+    def on_file_changed(content, out, path)
       SpacewalkHtmlClean.generate_diff(content, out, path)
+    end
+
+    def on_file_done(path)
     end
 
     def on_done

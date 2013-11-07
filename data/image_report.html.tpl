@@ -19,9 +19,9 @@
     <body>
 
     <div class="panel-group" id="accordion">
-    <%  image_map.sort_by {|_key, value| -1 * image_rank[_key] }.each do  |tuple|
+    <%  image_ocurr.sort_by {|_key, value| -1 * image_rank[_key] }.each do  |tuple|
           image = tuple[0]
-          icon = tuple[1]
+          icon = image_map[image]
           path = File.join(images_directory, image)
           next if not File.exist?(path)
           data = Base64.encode64(File.read(path))
@@ -56,7 +56,7 @@
           <div class="panel-body">
             <ul>
             <% image_ocurr[image].each do |file| %>
-              <li><a href="<%= File.expand_path(file) %>"><%= file %></a></li>
+              <li><a href="file:/<%= File.expand_path(file) %>"><%= file %></a></li>
             <% end %>
             </ul>
 

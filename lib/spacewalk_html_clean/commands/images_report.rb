@@ -41,9 +41,13 @@ module SpacewalkHtmlClean
 
     class ImagesReport < Command
 
+      def self.images_directory
+        File.join(top_git_directory, 'branding')
+      end
+
       option ["-i", "--images-directory"], "IMAGES_DIRECTORY",
              "Where images are located",
-             :default => find_images_directory do |s|
+             :default => images_directory do |s|
         raise "Can't locate the images directory" unless File.directory?(images)
         images
       end
@@ -92,10 +96,10 @@ module SpacewalkHtmlClean
       def process_tag(source, out, tag, path)
         init!
 
-        if path =~ /manage_header/
-          puts "#{path} #{tag.name}"
-          puts tag.getAttributes
-        end
+        #if path =~ /manage_header/
+        #  puts "#{path} #{tag.name}"
+        #  puts tag.getAttributes
+        #end
 
         if tag.name == 'img'
           src = tag.getAttributeValue('src')
@@ -105,21 +109,25 @@ module SpacewalkHtmlClean
           process_image(img, path) if img
           img = tag.getAttributeValue('miscImg')
           process_image("/img/" + img, path) if img
+        elsif tag.name == 'rhn-toolbar'
+          img = tag.getAttributeValue('img')
+          process_image(img, path) if img
         end
       end
 
       def on_file_start(content, path)
         init!
-        return if not File.extname(path) == '.java'
-        # Look for images in strings in the java files
-        match = /"([^\\"]|\\\\|\\")*(gif|png)"/.match(content)
-        return unless match
-        match.names.map { |s| s.unquote }.each do
-          process_image(path, img)
+        if not ['.java', '.pm'].include?(File.extname(path))
+          return
         end
-      end
-
-      def on_file_done(before, after, path)
+        # Look for images in strings in the java files
+        [/"([^\\"]|\\\\|\\")*(gif|png)"/, /'([^']|')*(gif|png)'/].each do |reg|
+          match = reg.match(content)
+          next unless match
+          img = match[0].unquote
+          #puts "#{img} -> #{path}"
+          process_image(img, path) if match
+        end
       end
 
       def on_done
